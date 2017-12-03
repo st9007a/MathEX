@@ -195,6 +195,132 @@ static int to_int(float x)
     return (int)x;
 }
 
+
+float expr_eval_with_dfs(struct expr *e)
+{
+#define STACK_SIZE 1000
+    int visited[STACK_SIZE] = {0};
+    struct expr *op_stack[STACK_SIZE];
+    float tmp_val[STACK_SIZE];
+
+    int op_sp = -1;
+    int tmp_sp = -1;
+
+    struct expr *current;
+
+    op_stack[++op_sp] = e;
+
+    while (op_sp >= 0) {
+        current = op_stack[op_sp];
+
+        if (visited[op_sp]) {
+
+            float val;
+
+            switch (current->type) {
+                case OP_UNARY_MINUS:
+                    val = -tmp_val[tmp_sp--];
+                    break;
+                case OP_UNARY_LOGICAL_NOT:
+                    val = !tmp_val[tmp_sp--];
+                    break;
+                case OP_UNARY_BITWISE_NOT:
+                    val = ~to_int(tmp_val[tmp_sp--]);
+                    break;
+                case OP_POWER:
+                    val = powf(tmp_val[tmp_sp--], tmp_val[tmp_sp--]);
+                    break;
+                case OP_MULTIPLY:
+                    val = tmp_val[tmp_sp--] * tmp_val[tmp_sp--];
+                    break;
+                case OP_DIVIDE:
+                    val = tmp_val[tmp_sp--] / tmp_val[tmp_sp--];
+                    break;
+                case OP_REMAINDER:
+                    val = fmodf(tmp_val[tmp_sp--], tmp_val[tmp_sp--]);
+                    break;
+                case OP_PLUS:
+                    val = tmp_val[tmp_sp--] + tmp_val[tmp_sp--];
+                    break;
+                case OP_MINUS:
+                    val = tmp_val[tmp_sp--] - tmp_val[tmp_sp--];
+                    break;
+                case OP_SHL:
+                    val = to_int(tmp_val[tmp_sp--]) << to_int(tmp_val[tmp_sp--]);
+                    break;
+                case OP_SHR:
+                    val = to_int(tmp_val[tmp_sp--]) >> to_int(tmp_val[tmp_sp--]);
+                    break;
+                case OP_LT:
+                    val = tmp_val[tmp_sp--] < tmp_val[tmp_sp--];
+                    break;
+                case OP_LE:
+                    val = tmp_val[tmp_sp--] <= tmp_val[tmp_sp--];
+                    break;
+                    val = tmp_val[tmp_sp--] > tmp_val[tmp_sp--];
+                    break;
+                case OP_GE:
+                    val = tmp_val[tmp_sp--] >= tmp_val[tmp_sp--];
+                    break;
+                case OP_EQ:
+                    val = tmp_val[tmp_sp--] == tmp_val[tmp_sp--];
+                    break;
+                case OP_NE:
+                    val = tmp_val[tmp_sp--] != tmp_val[tmp_sp--];
+                    break;
+                case OP_BITWISE_AND:
+                    val = to_int(tmp_val[tmp_sp--]) & to_int(tmp_val[tmp_sp--]);
+                    break;
+                case OP_BITWISE_OR:
+                    val = to_int(tmp_val[tmp_sp--]) | to_int(tmp_val[tmp_sp--]);
+                    break;
+                case OP_BITWISE_XOR:
+                    val = to_int(tmp_val[tmp_sp--]) ^ to_int(tmp_val[tmp_sp--]);
+                    break;
+                case OP_LOGICAL_AND:
+                    val = tmp_val[tmp_sp--];
+                    if (val != 0) {
+                        val = tmp_val[tmp_sp--];
+                    }
+                    else {
+                        tmp_sp--;
+                    }
+                    break;
+                case OP_LOGICAL_OR:
+                    val = tmp_val[tmp_sp--];
+                    if (val == 0) {
+                        val = tmp_val[tmp_sp--];
+                    }
+                    else {
+                        tmp_sp--;
+                    }
+                    break;
+                case OP_COMMA:
+                    tmp_sp--;
+                    val = tmp_val[tmp_sp--];
+                    break;
+                default:
+                    return NAN;
+            }
+
+            tmp_val[++tmp_sp] = val;
+            op_sp--;
+        }
+        else if (current->type == OP_VAR || current->type == OP_CONST) {
+            op_sp--;
+            tmp_val[++tmp_sp] = current->type == OP_VAR ? *current->param.var.value : current->param.num.value;
+        }
+        else {
+            visited[op_sp] = 1;
+            for (int i = 0; i < current->param.op.args.len; i++) {
+                op_stack[++op_sp] = &current->param.op.args.buf[i];
+            }
+        }
+    }
+
+    return tmp_val[0];
+}
+
 float expr_eval(struct expr *e)
 {
     float n;
