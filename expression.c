@@ -324,6 +324,7 @@ float expr_eval_with_dfs(struct expr *e)
 float expr_eval_with_asm(struct expr *e)
 {
     float n;
+    float a, b;
     
     switch (e->type) {
     case OP_UNARY_MINUS:
@@ -336,20 +337,53 @@ float expr_eval_with_asm(struct expr *e)
         return powf(expr_eval_with_asm(&e->param.op.args.buf[0]),
             expr_eval_with_asm(&e->param.op.args.buf[1]));
     case OP_MULTIPLY:
-        return expr_eval_with_asm(&e->param.op.args.buf[0])
-            * expr_eval_with_asm(&e->param.op.args.buf[1]);
+        a = expr_eval(&e->param.op.args.buf[0]);
+        b = expr_eval(&e->param.op.args.buf[1]);
+        asm("fld %1;"
+            "fld %2;"
+            "fmulp;"
+            "fstp %0"
+            : "=m" ( n )
+            : "m" ( a ), "m" ( b )
+        );
+        return n;
     case OP_DIVIDE:
-        return expr_eval_with_asm(&e->param.op.args.buf[0])
-            / expr_eval_with_asm(&e->param.op.args.buf[1]);
+        a = expr_eval(&e->param.op.args.buf[0]);
+        b = expr_eval(&e->param.op.args.buf[1]);
+        asm("fld %2;"
+            "fld %1;"
+            "fdivp;"
+            "fstp %0"
+            : "=m" ( n )
+            : "m" ( a ), "m" ( b )
+        );
+        return n;
     case OP_REMAINDER:
         return fmodf(expr_eval_with_asm(&e->param.op.args.buf[0]),
             expr_eval_with_asm(&e->param.op.args.buf[1]));
     case OP_PLUS:
-        return expr_eval_with_asm(&e->param.op.args.buf[0])
-            + expr_eval_with_asm(&e->param.op.args.buf[1]);
+        a = expr_eval(&e->param.op.args.buf[0]);
+        b = expr_eval(&e->param.op.args.buf[1]);
+        asm("fld %1;"
+            "fld %2;"
+            "faddp;"
+            "fstp %0"
+            : "=m" ( n )
+            : "m" ( a ), "m" ( b )
+        );
+        return n;
     case OP_MINUS:
-        return expr_eval_with_asm(&e->param.op.args.buf[0])
-            - expr_eval_with_asm(&e->param.op.args.buf[1]);
+        a = expr_eval(&e->param.op.args.buf[0]);
+        b = expr_eval(&e->param.op.args.buf[1]);
+        asm("fld %2;"
+            "fld %1;"
+            "fsubp;"
+            "fstp %0"
+            : "=m" ( n )
+            : "m" ( a ), "m" ( b )
+        );
+        printf("%f\n", n);
+        return n;
     case OP_SHL:
         return to_int(expr_eval_with_asm(&e->param.op.args.buf[0]))
             << to_int(expr_eval_with_asm(&e->param.op.args.buf[1]));
@@ -413,7 +447,7 @@ float expr_eval_with_asm(struct expr *e)
         if (vec_nth(&e->param.op.args, 0).type == OP_VAR) {
             asm("fld %1;"
                 "fstp %0;"
-                : "=m" ( e->param.op.args.buf[0].param.var.value )
+                : "=m" ( *e->param.op.args.buf[0].param.var.value )
                 : "m" ( n )
             );
         }
