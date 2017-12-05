@@ -404,15 +404,18 @@ float expr_eval_with_asm(struct expr *e)
         }
         return 0;
     case OP_ASSIGN:
-        asm("movl %1, %%eax;"
-            "movl %%eax, %0;"
-            : "=r" ( n )
-            : "r" ( e->param.op.args.buf[1].param.num.value )
-            : "%eax"
+        asm("fld %1;"
+            "fstp %0;"
+            : "=m" ( n )
+            : "m" ( e->param.op.args.buf[1].param.num.value )
         );
 
         if (vec_nth(&e->param.op.args, 0).type == OP_VAR) {
-            *e->param.op.args.buf[0].param.var.value = n;
+            asm("fld %1;"
+                "fstp %0;"
+                : "=m" ( e->param.op.args.buf[0].param.var.value )
+                : "m" ( n )
+            );
         }
         return n;
     case OP_COMMA:
