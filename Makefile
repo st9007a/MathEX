@@ -11,7 +11,7 @@ all: $(EXEC)
 .PHONY: check clean
 
 CC ?= gcc
-CFLAGS = -Wall -std=c99 -g -O2 -I.
+CFLAGS = -Wall -std=gnu99 -g -O2 -I.
 LDFLAGS = -lm
 
 OBJS := \

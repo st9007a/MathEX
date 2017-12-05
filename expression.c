@@ -321,6 +321,116 @@ float expr_eval_with_dfs(struct expr *e)
     return tmp_val[0];
 }
 
+float expr_eval_with_asm(struct expr *e)
+{
+    float n;
+    
+    switch (e->type) {
+    case OP_UNARY_MINUS:
+        return -(expr_eval_with_asm(&e->param.op.args.buf[0]));
+    case OP_UNARY_LOGICAL_NOT:
+        return !(expr_eval_with_asm(&e->param.op.args.buf[0]));
+    case OP_UNARY_BITWISE_NOT:
+        return ~(to_int(expr_eval_with_asm(&e->param.op.args.buf[0])));
+    case OP_POWER:
+        return powf(expr_eval_with_asm(&e->param.op.args.buf[0]),
+            expr_eval_with_asm(&e->param.op.args.buf[1]));
+    case OP_MULTIPLY:
+        return expr_eval_with_asm(&e->param.op.args.buf[0])
+            * expr_eval_with_asm(&e->param.op.args.buf[1]);
+    case OP_DIVIDE:
+        return expr_eval_with_asm(&e->param.op.args.buf[0])
+            / expr_eval_with_asm(&e->param.op.args.buf[1]);
+    case OP_REMAINDER:
+        return fmodf(expr_eval_with_asm(&e->param.op.args.buf[0]),
+            expr_eval_with_asm(&e->param.op.args.buf[1]));
+    case OP_PLUS:
+        return expr_eval_with_asm(&e->param.op.args.buf[0])
+            + expr_eval_with_asm(&e->param.op.args.buf[1]);
+    case OP_MINUS:
+        return expr_eval_with_asm(&e->param.op.args.buf[0])
+            - expr_eval_with_asm(&e->param.op.args.buf[1]);
+    case OP_SHL:
+        return to_int(expr_eval_with_asm(&e->param.op.args.buf[0]))
+            << to_int(expr_eval_with_asm(&e->param.op.args.buf[1]));
+    case OP_SHR:
+        return to_int(expr_eval_with_asm(&e->param.op.args.buf[0]))
+            >> to_int(expr_eval_with_asm(&e->param.op.args.buf[1]));
+    case OP_LT:
+        return expr_eval_with_asm(&e->param.op.args.buf[0])
+            < expr_eval_with_asm(&e->param.op.args.buf[1]);
+    case OP_LE:
+        return expr_eval_with_asm(&e->param.op.args.buf[0])
+            <= expr_eval_with_asm(&e->param.op.args.buf[1]);
+    case OP_GT:
+        return expr_eval_with_asm(&e->param.op.args.buf[0])
+            > expr_eval_with_asm(&e->param.op.args.buf[1]);
+    case OP_GE:
+        return expr_eval_with_asm(&e->param.op.args.buf[0])
+            >= expr_eval_with_asm(&e->param.op.args.buf[1]);
+    case OP_EQ:
+        return expr_eval_with_asm(&e->param.op.args.buf[0])
+            == expr_eval_with_asm(&e->param.op.args.buf[1]);
+    case OP_NE:
+        return expr_eval_with_asm(&e->param.op.args.buf[0])
+            != expr_eval_with_asm(&e->param.op.args.buf[1]);
+    case OP_BITWISE_AND:
+        return to_int(expr_eval_with_asm(&e->param.op.args.buf[0]))
+            & to_int(expr_eval_with_asm(&e->param.op.args.buf[1]));
+    case OP_BITWISE_OR:
+        return to_int(expr_eval_with_asm(&e->param.op.args.buf[0]))
+            | to_int(expr_eval_with_asm(&e->param.op.args.buf[1]));
+    case OP_BITWISE_XOR:
+        return to_int(expr_eval_with_asm(&e->param.op.args.buf[0]))
+            ^ to_int(expr_eval_with_asm(&e->param.op.args.buf[1]));
+    case OP_LOGICAL_AND:
+        n = expr_eval_with_asm(&e->param.op.args.buf[0]);
+        if (n != 0) {
+            n = expr_eval_with_asm(&e->param.op.args.buf[1]);
+            if (n != 0) {
+                return n;
+            }
+        }
+        return 0;
+    case OP_LOGICAL_OR:
+        n = expr_eval_with_asm(&e->param.op.args.buf[0]);
+        if (n != 0 && !isnan(n)) {
+            return n;
+        } else {
+            n = expr_eval_with_asm(&e->param.op.args.buf[1]);
+            if (n != 0) {
+                return n;
+            }
+        }
+        return 0;
+    case OP_ASSIGN:
+        asm("movl %1, %%eax;"
+            "movl %%eax, %0;"
+            : "=r" ( n )
+            : "r" ( e->param.op.args.buf[1].param.num.value )
+            : "%eax"
+        );
+
+        if (vec_nth(&e->param.op.args, 0).type == OP_VAR) {
+            *e->param.op.args.buf[0].param.var.value = n;
+        }
+        return n;
+    case OP_COMMA:
+        expr_eval_with_asm(&e->param.op.args.buf[0]);
+        return expr_eval_with_asm(&e->param.op.args.buf[1]);
+    case OP_CONST:
+        return e->param.num.value;
+    case OP_VAR:
+        return *e->param.var.value;
+    case OP_FUNC:
+        return e->param.func.f->f(
+            e->param.func.f, e->param.func.args, e->param.func.context);
+    default:
+        return NAN;
+    }
+}
+
+
 float expr_eval(struct expr *e)
 {
     float n;

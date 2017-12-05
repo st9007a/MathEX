@@ -111,6 +111,7 @@ struct expr_var *expr_var(struct expr_var_list *vars, const char *s, size_t len)
 
 float expr_eval(struct expr *e);
 float expr_eval_with_dfs(struct expr *e);
+float expr_eval_with_asm(struct expr *e);
 
 #define EXPR_TOP (1 << 0)
 #define EXPR_TOPEN (1 << 1)
